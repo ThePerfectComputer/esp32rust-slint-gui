@@ -9,19 +9,18 @@
 
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
-use embedded_hal_bus::spi::ExclusiveDevice;
 use embedded_graphics_core::pixelcolor::{Rgb565, RgbColor};
-use embedded_graphics_core::prelude::DrawTarget;
+use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
 use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::spi::master::{Config as SpiConfig, Spi};
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
-use mipidsi::models::ILI9341Rgb565;
-use mipidsi::interface::SpiInterface;
-use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::Builder;
+use mipidsi::interface::SpiInterface;
+use mipidsi::models::ILI9341Rgb565;
+use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use rtt_target::rprintln;
 
 #[panic_handler]
@@ -71,16 +70,32 @@ async fn main(spawner: Spawner) -> ! {
     let mut display = Builder::new(ILI9341Rgb565, di)
         .display_size(240, 320)
         .orientation(Orientation::new().rotate(Rotation::Deg90))
-        .color_order(ColorOrder::Rgb)
+        .color_order(ColorOrder::Bgr)
         .invert_colors(ColorInversion::Inverted)
         .init(&mut delay)
         .expect("Failed to initialize ILI9341 display");
 
-    display
-        .clear(Rgb565::RED)
-        .expect("Failed to clear display to red");
+    const WIDTH: u16 = 320;
+    const HEIGHT: u16 = 240;
+    const TILE: u16 = 20;
 
-    rprintln!("Display initialized and filled with solid red");
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            let tile_x = x / TILE;
+            let tile_y = y / TILE;
+            let color = if (tile_x + tile_y) % 2 == 0 {
+                Rgb565::RED
+            } else {
+                Rgb565::BLUE
+            };
+
+            display
+                .set_pixel(x, y, color)
+                .expect("Failed to draw checkerboard pixel");
+        }
+    }
+
+    rprintln!("Display initialized and checkerboard drawn");
 
     loop {
         Timer::after(Duration::from_secs(1)).await;

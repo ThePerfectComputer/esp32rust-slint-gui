@@ -11,6 +11,7 @@ with the long-term goal of running Slint on top of embassy/esp-rs.
 ## Status
 - [x] `cargo run` prints hello-world over RTT from board
 - [x] Initialize ILI9341 over SPI and clear display to solid red
+- [x] Initialize ILI9341 over SPI and clear display to show checkerboard pattern
 - [ ] Acquire touch coordinates
 - [ ] Slint rendering to display
 
