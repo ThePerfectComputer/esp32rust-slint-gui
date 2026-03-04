@@ -13,7 +13,10 @@ with the long-term goal of running Slint on top of embassy/esp-rs.
 - [x] Initialize ILI9341 over SPI and clear display to solid red
 - [x] Initialize ILI9341 over SPI and clear display to show checkerboard pattern
 - [x] Acquire touch coordinates
-- [ ] Slint rendering to display
+- [x] Implement touchscreen paint mode (black background, draw white points while dragging on the touchscreen)
+- [ ] Slint rendering to display(should probably use 
+      buffers at this points instead of doing `set_pixel`
+      for each pixel)
 
 ## Display/Touch pin mapping (from LCDWiki)
 Based on the LCDWiki ESP32 pin table for the 2.8" ESP32-S3 display board:
@@ -76,7 +79,7 @@ The display path uses:
 - `mipidsi` for ILI9341 initialization
 - `display-interface-spi` to bridge SPI + D/C to the display interface
 
-The current bring-up fills the full screen with **solid red**, which is a good first hardware sanity check before adding touch and Slint rendering.
+The current bring-up starts in **paint mode** (black background with white brush strokes from touch input).
 
 ## Possibly useful references
 - https://www.lcdwiki.com/2.8inch_ESP32-S3_Display#Screen_parameters
