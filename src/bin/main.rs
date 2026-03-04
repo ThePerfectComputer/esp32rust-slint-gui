@@ -9,11 +9,19 @@
 
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
+use embedded_hal_bus::spi::ExclusiveDevice;
+use embedded_graphics_core::pixelcolor::{Rgb565, RgbColor};
+use embedded_graphics_core::prelude::DrawTarget;
 use esp_hal::clock::CpuClock;
+use esp_hal::delay::Delay;
+use esp_hal::gpio::{Level, Output, OutputConfig};
+use esp_hal::spi::master::{Config as SpiConfig, Spi};
+use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
-use esp_radio::ble::controller::BleConnector;
-use mipidsi::Display;
 use mipidsi::models::ILI9341Rgb565;
+use mipidsi::interface::SpiInterface;
+use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
+use mipidsi::Builder;
 use rtt_target::rprintln;
 
 #[panic_handler]
@@ -23,45 +31,58 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 
 extern crate alloc;
 
-// This creates a default app-descriptor required by the esp-idf bootloader.
-// For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
 esp_bootloader_esp_idf::esp_app_desc!();
 
-#[allow(
-    clippy::large_stack_frames,
-    reason = "it's not unusual to allocate larger buffers etc. in main"
-)]
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
-    // generator version: 1.2.0
-
     rtt_target::rtt_init_print!();
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
-    esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 73744);
-    // COEX needs more RAM - so we've added some more
-    esp_alloc::heap_allocator!(size: 64 * 1024);
-
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_rtos::start(timg0.timer0);
 
-    rprintln!("Embassy initialized!");
-
-    let radio_init = esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller");
-    let (mut _wifi_controller, _interfaces) =
-        esp_radio::wifi::new(&radio_init, peripherals.WIFI, Default::default())
-            .expect("Failed to initialize Wi-Fi controller");
-    let _connector = BleConnector::new(&radio_init, peripherals.BT, Default::default());
-
-    // TODO: Spawn some tasks
     let _ = spawner;
 
+    let mut delay = Delay::new();
+
+    let lcd_sclk = peripherals.GPIO12;
+    let lcd_mosi = peripherals.GPIO11;
+    let lcd_miso = peripherals.GPIO13;
+
+    let spi = Spi::new(
+        peripherals.SPI2,
+        SpiConfig::default().with_frequency(Rate::from_mhz(40)),
+    )
+    .expect("Failed to initialize SPI2")
+    .with_sck(lcd_sclk)
+    .with_mosi(lcd_mosi)
+    .with_miso(lcd_miso);
+
+    let dc = Output::new(peripherals.GPIO46, Level::Low, OutputConfig::default());
+    let cs = Output::new(peripherals.GPIO10, Level::High, OutputConfig::default());
+    let _backlight = Output::new(peripherals.GPIO45, Level::High, OutputConfig::default());
+
+    let spi_device = ExclusiveDevice::new_no_delay(spi, cs).expect("Failed to create SPI device");
+    let mut buffer = [0u8; 512];
+    let di = SpiInterface::new(spi_device, dc, &mut buffer);
+
+    let mut display = Builder::new(ILI9341Rgb565, di)
+        .display_size(240, 320)
+        .orientation(Orientation::new().rotate(Rotation::Deg90))
+        .color_order(ColorOrder::Rgb)
+        .invert_colors(ColorInversion::Inverted)
+        .init(&mut delay)
+        .expect("Failed to initialize ILI9341 display");
+
+    display
+        .clear(Rgb565::RED)
+        .expect("Failed to clear display to red");
+
+    rprintln!("Display initialized and filled with solid red");
+
     loop {
-        rprintln!("Hello world!");
         Timer::after(Duration::from_secs(1)).await;
     }
-
-    // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0/examples
 }
