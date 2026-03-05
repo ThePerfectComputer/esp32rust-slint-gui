@@ -79,7 +79,7 @@ export component DemoApp inherits Window {
             x: 6px;
             y: 6px;
             width: parent.width - 12px;
-            height: 88px;
+            height: 76px;
             border-radius: 6px;
             background: rgb(30, 41, 59);
 
@@ -105,7 +105,7 @@ export component DemoApp inherits Window {
             Text {
                 text: root.artist_name;
                 x: 8px;
-                y: 42px;
+                y: 38px;
                 width: parent.width - 16px;
                 color: rgb(203, 213, 225);
                 font-size: 11px;
@@ -114,7 +114,7 @@ export component DemoApp inherits Window {
 
             Rectangle {
                 x: 8px;
-                y: 66px;
+                y: 58px;
                 width: parent.width - 16px;
                 height: 12px;
                 border-radius: 6px;
@@ -133,16 +133,16 @@ export component DemoApp inherits Window {
 
         Rectangle {
             x: 8px;
-            y: 100px;
+            y: 88px;
             width: 46px;
             height: 24px;
             border-radius: 5px;
-            background: rgb(51, 65, 85);
-            TouchArea {
+            prev_touch := TouchArea {
                 clicked => {
                     root.previous_track();
                 }
             }
+            background: prev_touch.pressed ? rgb(71, 85, 105) : rgb(51, 65, 85);
             Text {
                 text: "Prev";
                 color: rgb(226, 232, 240);
@@ -154,16 +154,18 @@ export component DemoApp inherits Window {
 
         Rectangle {
             x: 62px;
-            y: 100px;
+            y: 88px;
             width: 46px;
             height: 24px;
             border-radius: 5px;
-            background: root.is_playing ? rgb(22, 163, 74) : rgb(37, 99, 235);
-            TouchArea {
+            play_touch := TouchArea {
                 clicked => {
                     root.toggle_playback();
                 }
             }
+            background: play_touch.pressed
+                ? (root.is_playing ? rgb(34, 197, 94) : rgb(59, 130, 246))
+                : (root.is_playing ? rgb(22, 163, 74) : rgb(37, 99, 235));
             Text {
                 text: root.is_playing ? "Pause" : "Play";
                 color: rgb(248, 250, 252);
@@ -175,16 +177,16 @@ export component DemoApp inherits Window {
 
         Rectangle {
             x: 116px;
-            y: 100px;
+            y: 88px;
             width: 46px;
             height: 24px;
             border-radius: 5px;
-            background: rgb(51, 65, 85);
-            TouchArea {
+            next_touch := TouchArea {
                 clicked => {
                     root.next_track();
                 }
             }
+            background: next_touch.pressed ? rgb(71, 85, 105) : rgb(51, 65, 85);
             Text {
                 text: "Next";
                 color: rgb(226, 232, 240);
@@ -197,7 +199,7 @@ export component DemoApp inherits Window {
         Text {
             text: "Volume";
             x: 8px;
-            y: 132px;
+            y: 120px;
             color: rgb(148, 163, 184);
             font-size: 10px;
         }
@@ -217,12 +219,12 @@ export component DemoApp inherits Window {
             width: 18px;
             height: 16px;
             border-radius: 4px;
-            background: rgb(31, 41, 55);
-            TouchArea {
+            vol_down_touch := TouchArea {
                 clicked => {
                     root.volume_down();
                 }
             }
+            background: vol_down_touch.pressed ? rgb(51, 65, 85) : rgb(31, 41, 55);
             Text {
                 text: "-";
                 color: rgb(203, 213, 225);
@@ -237,12 +239,12 @@ export component DemoApp inherits Window {
             width: 14px;
             height: 16px;
             border-radius: 4px;
-            background: rgb(31, 41, 55);
-            TouchArea {
+            vol_up_touch := TouchArea {
                 clicked => {
                     root.volume_up();
                 }
             }
+            background: vol_up_touch.pressed ? rgb(51, 65, 85) : rgb(31, 41, 55);
             Text {
                 text: "+";
                 color: rgb(203, 213, 225);
@@ -254,48 +256,50 @@ export component DemoApp inherits Window {
         Text {
             text: "Quick Contacts";
             x: 8px;
-            y: 158px;
+            y: 148px;
             color: rgb(148, 163, 184);
             font-size: 10px;
         }
 
         for c[index] in root.contacts : Rectangle {
             x: 8px;
-            y: 174px + index * 22px;
+            y: 160px + index * 14px;
             width: parent.width - 16px;
-            height: 18px;
-            border-radius: 4px;
-            background: root.selected_contact == index ? rgb(51, 65, 85) : rgb(31, 41, 55);
-            TouchArea {
+            height: 12px;
+            border-radius: 3px;
+            contact_touch := TouchArea {
                 clicked => {
                     root.contact_selected(index, c.name, c.number);
                 }
             }
+            background: contact_touch.pressed
+                ? rgb(71, 85, 105)
+                : (root.selected_contact == index ? rgb(51, 65, 85) : rgb(31, 41, 55));
 
             Rectangle {
                 x: 4px;
-                y: 4px;
-                width: 10px;
-                height: 10px;
-                border-radius: 5px;
+                y: 3px;
+                width: 6px;
+                height: 6px;
+                border-radius: 3px;
                 background: c.accent;
             }
 
             Text {
                 text: c.name;
-                x: 18px;
-                y: 2px;
+                x: 14px;
+                y: 1px;
                 color: rgb(248, 250, 252);
-                font-size: 10px;
+                font-size: 9px;
             }
 
             Text {
                 text: c.number;
-                x: 64px;
-                y: 2px;
-                width: parent.width - 68px;
+                x: 58px;
+                y: 1px;
+                width: parent.width - 62px;
                 color: rgb(203, 213, 225);
-                font-size: 10px;
+                font-size: 9px;
                 horizontal-alignment: right;
             }
         }
@@ -339,12 +343,12 @@ export component DemoApp inherits Window {
             width: 34px;
             height: 22px;
             border-radius: 5px;
-            background: rgb(55, 65, 81);
-            TouchArea {
+            backspace_touch := TouchArea {
                 clicked => {
                     root.backspace_requested();
                 }
             }
+            background: backspace_touch.pressed ? rgb(75, 85, 99) : rgb(55, 65, 81);
             Text {
                 text: "<-";
                 color: rgb(248, 250, 252);
@@ -360,12 +364,12 @@ export component DemoApp inherits Window {
             width: 34px;
             height: 22px;
             border-radius: 5px;
-            background: rgb(75, 85, 99);
-            TouchArea {
+            clear_touch := TouchArea {
                 clicked => {
                     root.clear_requested();
                 }
             }
+            background: clear_touch.pressed ? rgb(107, 114, 128) : rgb(75, 85, 99);
             Text {
                 text: "CLR";
                 color: rgb(248, 250, 252);
@@ -381,12 +385,12 @@ export component DemoApp inherits Window {
             width: 38px;
             height: 22px;
             border-radius: 5px;
-            background: rgb(22, 163, 74);
-            TouchArea {
+            call_touch := TouchArea {
                 clicked => {
                     root.call_requested();
                 }
             }
+            background: call_touch.pressed ? rgb(34, 197, 94) : rgb(22, 163, 74);
             Text {
                 text: "CALL";
                 color: rgb(248, 250, 252);
@@ -398,19 +402,18 @@ export component DemoApp inherits Window {
 
         for key[key_index] in root.keypad_keys : Rectangle {
             x: 8px + Math.mod(key_index, 3) * 38px;
-            y: 74px + (key_index / 3) * 32px;
+            y: 74px + Math.floor(key_index / 3) * 32px;
             width: 34px;
             height: 28px;
             border-radius: 5px;
-            background: rgb(30, 41, 59);
-            border-width: 1px;
-            border-color: rgb(51, 65, 85);
-
-            TouchArea {
+            key_touch := TouchArea {
                 clicked => {
                     root.digit_pressed(key);
                 }
             }
+            background: key_touch.pressed ? rgb(51, 65, 85) : rgb(30, 41, 59);
+            border-width: 1px;
+            border-color: rgb(51, 65, 85);
 
             Text {
                 text: key;
