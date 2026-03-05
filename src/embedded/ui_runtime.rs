@@ -133,7 +133,7 @@ pub async fn run_ui(resources: UiTaskResources) -> ! {
 
     let mut display = Builder::new(ILI9341Rgb565, di)
         .display_size(240, 320)
-        .orientation(Orientation::new().rotate(Rotation::Deg90))
+        .orientation(Orientation::new().rotate(Rotation::Deg270).flip_horizontal())
         .color_order(ColorOrder::Bgr)
         .invert_colors(ColorInversion::Inverted)
         .init(&mut delay)

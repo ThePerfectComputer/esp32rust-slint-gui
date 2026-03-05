@@ -19,8 +19,12 @@ pub enum TouchSample {
 }
 
 fn map_touch_to_display(raw_x: u16, raw_y: u16) -> (u16, u16) {
+    // Display is configured with Rotation::Deg270 in ui_runtime.rs.
+    // For this panel orientation, swap axes and mirror touch about the Y-axis.
     let x = raw_y.min(DISPLAY_WIDTH.saturating_sub(1));
-    let y = raw_x.min(DISPLAY_HEIGHT.saturating_sub(1));
+    let y = DISPLAY_HEIGHT
+        .saturating_sub(1)
+        .saturating_sub(raw_x.min(DISPLAY_HEIGHT.saturating_sub(1)));
     (x, y)
 }
 
