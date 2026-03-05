@@ -4,10 +4,19 @@ use super::display::{DISPLAY_HEIGHT, DISPLAY_WIDTH};
 
 const FT6336_I2C_ADDR: u8 = 0x38;
 const FT6336_REG_CHIP_ID: u8 = 0xA3;
+const FT6336_REG_THRESHHOLD: u8 = 0x80;
+const FT6336_TOUCH_THRESHOLD: u8 = 12;
 const TOUCH_REG_GESTURE_ID: u8 = 0x01;
 
 pub const TOUCH_I2C_KHZ: u32 = 400;
 pub const TOUCH_POLL_INTERVAL_MS: u64 = 10;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TouchSample {
+    Pressed { x: u16, y: u16 },
+    Released,
+    ReadError,
+}
 
 fn map_touch_to_display(raw_x: u16, raw_y: u16) -> (u16, u16) {
     let x = raw_y.min(DISPLAY_WIDTH.saturating_sub(1));
@@ -49,12 +58,37 @@ where
         FT6336_I2C_ADDR,
         chip_id[0]
     );
+
+    // seems to reduce aggressive filter and make touchscreen a little
+    // more responsive
+    match i2c.write(
+        FT6336_I2C_ADDR,
+        &[FT6336_REG_THRESHHOLD, FT6336_TOUCH_THRESHOLD],
+    ) {
+        Ok(()) => {
+            let mut threshold = [0u8; 1];
+            match i2c.write_read(FT6336_I2C_ADDR, &[FT6336_REG_THRESHHOLD], &mut threshold) {
+                Ok(()) => rprintln!(
+                    "FT6336 THRESHHOLD={} (readback={})",
+                    FT6336_TOUCH_THRESHOLD,
+                    threshold[0]
+                ),
+                Err(err) => rprintln!(
+                    "FT6336 THRESHHOLD set to {}, readback failed: {:?}",
+                    FT6336_TOUCH_THRESHOLD,
+                    err
+                ),
+            }
+        }
+        Err(err) => rprintln!(
+            "FT6336 THRESHHOLD set failed ({}): {:?}",
+            FT6336_TOUCH_THRESHOLD,
+            err
+        ),
+    }
 }
 
-pub fn poll_touch_coordinates<I2C>(
-    i2c: &mut I2C,
-    consecutive_read_errors: &mut u8,
-) -> Option<(u16, u16)>
+pub fn poll_touch_sample<I2C>(i2c: &mut I2C, consecutive_read_errors: &mut u8) -> TouchSample
 where
     I2C: embedded_hal::i2c::I2c,
     I2C::Error: core::fmt::Debug,
@@ -65,9 +99,10 @@ where
         Ok(()) => {
             *consecutive_read_errors = 0;
             if let Some((raw_x, raw_y, _points, _gesture)) = parse_ft6336_touch(&touch_data) {
-                Some(map_touch_to_display(raw_x, raw_y))
+                let (x, y) = map_touch_to_display(raw_x, raw_y);
+                TouchSample::Pressed { x, y }
             } else {
-                None
+                TouchSample::Released
             }
         }
         Err(err) => {
@@ -79,7 +114,7 @@ where
                     err
                 );
             }
-            None
+            TouchSample::ReadError
         }
     }
 }

@@ -1,6 +1,4 @@
-use alloc::boxed::Box;
 use alloc::rc::Rc;
-use core::cell::RefCell;
 
 use embassy_time::{Duration, Timer};
 use embedded_hal_bus::spi::ExclusiveDevice;
@@ -8,57 +6,35 @@ use esp_hal::delay::Delay;
 use esp_hal::gpio::{AnyPin, Level, Output, OutputConfig};
 use esp_hal::i2c::master::{Config as I2cConfig, I2c};
 use esp_hal::spi::master::{Config as SpiConfig, Spi};
-use esp_hal::time::{Instant, Rate};
+use esp_hal::time::Rate;
 use mipidsi::Builder;
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ILI9341Rgb565;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use rtt_target::rprintln;
 use slint::ComponentHandle;
-use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType, Rgb565Pixel};
+use slint::platform::software_renderer::{MinimalSoftwareWindow, Rgb565Pixel};
 use slint::platform::{PointerEventButton, WindowEvent};
 
 use crate::embedded::display::{DISPLAY_HEIGHT, DISPLAY_WIDTH, DrawBuffer, clear_display};
+use crate::embedded::slint_backend::install_platform;
 use crate::embedded::touch::{
-    TOUCH_I2C_KHZ, TOUCH_POLL_INTERVAL_MS, init_touch_controller, poll_touch_coordinates,
+    TOUCH_I2C_KHZ, TOUCH_POLL_INTERVAL_MS, TouchSample, init_touch_controller, poll_touch_sample,
 };
 use crate::{DemoApp, install_demo_logic};
 
-pub struct BackendState {
-    pub window: RefCell<Option<Rc<MinimalSoftwareWindow>>>,
-}
-
-struct EspBackend {
-    state: Rc<BackendState>,
-}
-
-impl slint::platform::Platform for EspBackend {
-    fn create_window_adapter(
-        &self,
-    ) -> Result<Rc<dyn slint::platform::WindowAdapter>, slint::PlatformError> {
-        let window = MinimalSoftwareWindow::new(RepaintBufferType::ReusedBuffer);
-        self.state.window.replace(Some(window.clone()));
-        Ok(window)
-    }
-
-    fn duration_since_start(&self) -> core::time::Duration {
-        core::time::Duration::from_millis(Instant::now().duration_since_epoch().as_millis())
-    }
-
-    fn run_event_loop(&self) -> Result<(), slint::PlatformError> {
-        panic!("run_event_loop is unused in this async embassy integration")
-    }
-}
-
-fn install_platform() -> Rc<BackendState> {
-    let state = Rc::new(BackendState {
-        window: RefCell::new(None),
-    });
-    slint::platform::set_platform(Box::new(EspBackend {
-        state: state.clone(),
-    }))
-    .expect("Failed to set Slint platform");
-    state
+pub struct UiTaskResources {
+    pub spi2: esp_hal::peripherals::SPI2<'static>,
+    pub i2c0: esp_hal::peripherals::I2C0<'static>,
+    pub lcd_sclk: AnyPin<'static>,
+    pub lcd_mosi: AnyPin<'static>,
+    pub lcd_miso: AnyPin<'static>,
+    pub lcd_dc: AnyPin<'static>,
+    pub lcd_cs: AnyPin<'static>,
+    pub lcd_backlight: AnyPin<'static>,
+    pub touch_reset: AnyPin<'static>,
+    pub touch_sda: AnyPin<'static>,
+    pub touch_scl: AnyPin<'static>,
 }
 
 fn release_pointer_if_pressed(
@@ -76,10 +52,10 @@ fn release_pointer_if_pressed(
 
 fn dispatch_touch_to_slint(
     window: &Rc<MinimalSoftwareWindow>,
-    mapped_touch: Option<(u16, u16)>,
+    sample: TouchSample,
     last_touch_position: &mut Option<slint::LogicalPosition>,
 ) {
-    let Some((x, y)) = mapped_touch else {
+    let TouchSample::Pressed { x, y } = sample else {
         release_pointer_if_pressed(window, last_touch_position);
         return;
     };
@@ -103,20 +79,6 @@ fn dispatch_touch_to_slint(
     if let Some(event) = event {
         let _ = window.try_dispatch_event(event);
     }
-}
-
-pub struct UiTaskResources {
-    pub spi2: esp_hal::peripherals::SPI2<'static>,
-    pub i2c0: esp_hal::peripherals::I2C0<'static>,
-    pub lcd_sclk: AnyPin<'static>,
-    pub lcd_mosi: AnyPin<'static>,
-    pub lcd_miso: AnyPin<'static>,
-    pub lcd_dc: AnyPin<'static>,
-    pub lcd_cs: AnyPin<'static>,
-    pub lcd_backlight: AnyPin<'static>,
-    pub touch_reset: AnyPin<'static>,
-    pub touch_sda: AnyPin<'static>,
-    pub touch_scl: AnyPin<'static>,
 }
 
 #[embassy_executor::task]
@@ -214,8 +176,8 @@ pub async fn run_ui(resources: UiTaskResources) -> ! {
     loop {
         slint::platform::update_timers_and_animations();
 
-        let mapped_touch = poll_touch_coordinates(&mut i2c, &mut consecutive_read_errors);
-        dispatch_touch_to_slint(&window, mapped_touch, &mut last_touch_position);
+        let sample = poll_touch_sample(&mut i2c, &mut consecutive_read_errors);
+        dispatch_touch_to_slint(&window, sample, &mut last_touch_position);
 
         window.draw_if_needed(|software_renderer| {
             software_renderer.render_by_line(&mut renderer);
