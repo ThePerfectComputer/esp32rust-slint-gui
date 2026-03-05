@@ -1,9 +1,20 @@
 fn main() {
+    compile_slint_ui();
+
     if std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("xtensa") {
         linker_be_nice();
         // Make sure linkall.x is the last linker script.
         println!("cargo:rustc-link-arg=-Tlinkall.x");
     }
+}
+
+fn compile_slint_ui() {
+    let mut config = slint_build::CompilerConfiguration::new();
+    if std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("xtensa") {
+        config = config.embed_resources(slint_build::EmbedResourcesKind::EmbedForSoftwareRenderer);
+    }
+    slint_build::compile_with_config("ui/demo.slint", config)
+        .expect("Failed to compile Slint UI definition");
 }
 
 fn linker_be_nice() {
