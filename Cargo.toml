@@ -21,7 +21,7 @@ desktop-preview = [
 ]
 
 [dependencies]
-slint = { path = "slint/api/rs/slint", default-features = false, features = [
+slint = { version = "1.15.1", default-features = false, features = [
   "compat-1-2",
   "renderer-software",
   "unsafe-single-threaded",
