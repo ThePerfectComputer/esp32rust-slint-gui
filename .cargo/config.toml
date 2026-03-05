@@ -1,15 +1,17 @@
 [target.xtensa-esp32s3-none-elf]
 runner = "probe-rs run --chip=esp32s3 --preverify --always-print-stacktrace --no-location --catch-hardfault"
-
-[env]
-
-[build]
 rustflags = [
   "-C", "link-arg=-nostartfiles",
   "-Z", "stack-protector=all",
 ]
 
+[env]
+
+[build]
 target = "xtensa-esp32s3-none-elf"
 
-[unstable]
-build-std = ["alloc", "core"]
+[alias]
+preview = "run --bin preview --features desktop-preview --target aarch64-apple-darwin"
+preview-check = "check --bin preview --features desktop-preview --target aarch64-apple-darwin"
+"build-esp" = "build -Z build-std=alloc,core --bin my-esp-project"
+"flash-esp" = "run -Z build-std=alloc,core --bin my-esp-project"

@@ -8,7 +8,27 @@ version      = "0.1.0"
 name = "my-esp-project"
 path = "./src/bin/main.rs"
 
+[[bin]]
+name = "preview"
+path = "./src/bin/preview.rs"
+required-features = ["desktop-preview"]
+
+[features]
+desktop-preview = [
+  "slint/std",
+  "slint/backend-winit",
+  "slint/renderer-femtovg",
+]
+
 [dependencies]
+slint = { path = "slint/api/rs/slint", default-features = false, features = [
+  "compat-1-2",
+  "renderer-software",
+  "unsafe-single-threaded",
+  "libm",
+] }
+
+[target.'cfg(target_arch = "xtensa")'.dependencies]
 esp-hal = { version = "~1.0", features = ["esp32s3", "unstable"] }
 
 esp-rtos = { version = "0.2.0", features = [
@@ -65,6 +85,7 @@ mipidsi = "0.10.0"
 display-interface-spi = "0.5.0"
 embedded-graphics-core = "0.4.0"
 embedded-hal-bus = "0.3.0"
+embedded-hal = "1.0.0"
 
 
 [profile.dev]

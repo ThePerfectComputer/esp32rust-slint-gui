@@ -1,7 +1,9 @@
 fn main() {
-    linker_be_nice();
-    // make sure linkall.x is the last linker script (otherwise might cause problems with flip-link)
-    println!("cargo:rustc-link-arg=-Tlinkall.x");
+    if std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("xtensa") {
+        linker_be_nice();
+        // Make sure linkall.x is the last linker script.
+        println!("cargo:rustc-link-arg=-Tlinkall.x");
+    }
 }
 
 fn linker_be_nice() {
